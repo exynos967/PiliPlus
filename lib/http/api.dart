@@ -27,6 +27,8 @@ abstract final class Api {
 
   static const String tvPlayUrl = '/x/tv/playurl';
 
+  static const String trialModify = '/x/vip/hd/trial_modify';
+
   // 字幕
   // aid, cid
   static const String playInfo = '/x/player/wbi/v2';

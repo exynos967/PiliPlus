@@ -1065,6 +1065,33 @@ abstract final class VideoHttp {
     }
   }
 
+  static Future<bool> trialModify({
+    required int aid,
+    required int cid,
+    required int qn,
+  }) async {
+    final accessKey = Accounts.get(AccountType.video).accessKey;
+    final params = {
+      'access_key': ?accessKey,
+      'actionKey': 'appkey',
+      'aid': aid,
+      'cid': cid,
+      'qn': qn,
+      'mobi_app': 'android',
+      'platform': 'android',
+    };
+    AppSign.appSign(params);
+    try {
+      final res = await Request().get(
+        Api.trialModify,
+        queryParameters: params,
+      );
+      return res.data['code'] == 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<LoadingState<VideoShotData>> videoshot({
     required String bvid,
     required int cid,

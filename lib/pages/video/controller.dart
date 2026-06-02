@@ -864,12 +864,18 @@ class VideoDetailController extends GetxController
             : Pref.defaultAudioQaCellular;
     }
 
+    // 激活 VIP 画质试用
+    final targetQn = qn ?? plPlayerController.cacheVideoQa;
+    if (Pref.enableVipTrial && targetQn != null && targetQn >= 112) {
+      await VideoHttp.trialModify(aid: aid, cid: cid.value, qn: targetQn);
+    }
+
     final result = await VideoHttp.videoUrl(
       cid: cid.value,
       bvid: bvid,
       epid: epId,
       seasonId: seasonId,
-      qn: qn ?? plPlayerController.cacheVideoQa,
+      qn: targetQn,
       tryLook: plPlayerController.tryLook || Pref.enableVipTrial,
       videoType: _actualVideoType ?? videoType,
       language: currLang.value,
