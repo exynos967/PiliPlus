@@ -865,19 +865,33 @@ class VideoDetailController extends GetxController
     }
 
     final targetQn = qn ?? plPlayerController.cacheVideoQa;
-    final result = await VideoHttp.videoUrl(
-      cid: cid.value,
-      bvid: bvid,
-      epid: epId,
-      seasonId: seasonId,
-      qn: targetQn,
-      tryLook: plPlayerController.tryLook ||
-          (Pref.enableVipTrial &&
-              !Accounts.get(AccountType.video).isLogin),
-      videoType: _actualVideoType ?? videoType,
-      language: currLang.value,
-      voiceBalance: plPlayerController.enableAudioNormalization,
-    );
+    final useTrial = Pref.enableVipTrial && targetQn != null && targetQn >= 112;
+
+    LoadingState<PlayUrlModel> result;
+    if (useTrial) {
+      // APP 接口 + AppSign 鉴权尝试获取试用画质
+      result = await VideoHttp.appPlayUrl(
+        avid: aid,
+        bvid: bvid,
+        cid: cid.value,
+        qn: targetQn,
+        epid: epId,
+        seasonId: seasonId,
+        videoType: _actualVideoType ?? videoType,
+      );
+    } else {
+      result = await VideoHttp.videoUrl(
+        cid: cid.value,
+        bvid: bvid,
+        epid: epId,
+        seasonId: seasonId,
+        qn: targetQn,
+        tryLook: plPlayerController.tryLook,
+        videoType: _actualVideoType ?? videoType,
+        language: currLang.value,
+        voiceBalance: plPlayerController.enableAudioNormalization,
+      );
+    }
 
     if (result case Success(:final response)) {
       data = response;

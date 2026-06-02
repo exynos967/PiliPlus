@@ -285,6 +285,67 @@ abstract final class VideoHttp {
     };
   }
 
+  /// APP 接口 playurl（AppSign 鉴权，用于试用 VIP 画质）
+  static Future<LoadingState<PlayUrlModel>> appPlayUrl({
+    int? avid,
+    String? bvid,
+    required int cid,
+    int? qn,
+    dynamic epid,
+    dynamic seasonId,
+    required VideoType videoType,
+  }) async {
+    final accessKey = Accounts.get(AccountType.video).accessKey;
+    final params = {
+      'access_key': ?accessKey,
+      'actionKey': 'appkey',
+      'avid': ?avid,
+      'bvid': ?bvid,
+      'ep_id': ?epid,
+      'season_id': ?seasonId,
+      'cid': cid,
+      'qn': qn ?? 80,
+      'fnval': 4048,
+      'fourk': 1,
+      'fnver': 0,
+      'mobi_app': 'android',
+      'platform': 'android',
+      'voice_balance': 0,
+      if (Pref.enableVipTrial) 'try_look': 1,
+    };
+    AppSign.appSign(params);
+    try {
+      final res = await Request().get(
+        videoType.api,
+        queryParameters: params,
+      );
+      if (res.data['code'] == 0) {
+        late PlayUrlModel data;
+        switch (videoType) {
+          case VideoType.ugc:
+            data = PlayUrlModel.fromJson(res.data['data']);
+            break;
+          case VideoType.pugv:
+            final result = res.data['data'];
+            data = PlayUrlModel.fromJson(result)
+              ..lastPlayTime = result?['play_view_business_info']
+                  ?['user_status']?['watch_progress']?['current_watch_progress'];
+            break;
+          case VideoType.pgc:
+            final result = res.data['result'];
+            data = PlayUrlModel.fromJson(result['video_info'])
+              ..lastPlayTime = result?['play_view_business_info']
+                  ?['user_status']?['watch_progress']?['current_watch_progress'];
+            break;
+        }
+        return Success(data);
+      }
+      return Error(_parseVideoErr(res.data['code'], res.data['message']));
+    } catch (e) {
+      return Error('$e');
+    }
+  }
+
   // 视频信息 标题、简介
   static Future<LoadingState<VideoDetailData>> videoIntro({
     required String bvid,
