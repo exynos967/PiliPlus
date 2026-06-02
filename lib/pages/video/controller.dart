@@ -707,6 +707,18 @@ class VideoDetailController extends GetxController
       ..isBuffering.value = false
       ..buffered.value = Duration.zero;
 
+    // 目标画质不在当前 dash.video 中，触发试用重新请求
+    final videoList =
+        data.dash!.video!.where((i) => i.id == currentVideoQa.code).toList();
+    if (videoList.isEmpty) {
+      if (Pref.enableVipTrial) {
+        queryVideoUrl(qn: currentVideoQa.code);
+      } else {
+        SmartDialog.showToast('当前不支持此画质');
+      }
+      return;
+    }
+
     final video = findVideoByQa(currentVideoQa.code);
     if (firstVideo.codecs != video.codecs) {
       currentDecodeFormats = VideoDecodeFormatType.fromString(video.codecs!);
@@ -829,6 +841,7 @@ class VideoDetailController extends GetxController
     Duration? defaultST,
     bool fromReset = false,
     bool autoFullScreenFlag = false,
+    int? qn,
   }) async {
     if (isFileSource) {
       return _initPlayerIfNeeded(autoFullScreenFlag);
@@ -856,7 +869,8 @@ class VideoDetailController extends GetxController
       bvid: bvid,
       epid: epId,
       seasonId: seasonId,
-      tryLook: plPlayerController.tryLook,
+      qn: qn ?? plPlayerController.cacheVideoQa,
+      tryLook: plPlayerController.tryLook || Pref.enableVipTrial,
       videoType: _actualVideoType ?? videoType,
       language: currLang.value,
       voiceBalance: plPlayerController.enableAudioNormalization,

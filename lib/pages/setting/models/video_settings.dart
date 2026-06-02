@@ -36,6 +36,13 @@ List<SettingsModel> get videoSettings => [
     setKey: SettingBoxKey.p1080,
     defaultVal: true,
   ),
+  const SwitchModel(
+    title: '无限试用会员画质',
+    subtitle: '解锁 1080P+、1080P60、4K、杜比等会员专属画质',
+    leading: Icon(Icons.star_outlined),
+    setKey: SettingBoxKey.enableVipTrial,
+    defaultVal: false,
+  ),
   NormalModel(
     title: 'B站定向流量支持',
     subtitle: '若套餐含B站定向流量，则会自动使用。可查阅运营商的流量记录确认。',

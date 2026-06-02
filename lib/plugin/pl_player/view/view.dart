@@ -65,6 +65,7 @@ import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:collection/collection.dart';
@@ -833,7 +834,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                 totalQaSam,
                 (index) {
                   final item = videoFormat[index];
-                  final enabled = index >= totalQaSam - usefulQaSam;
+                  final enabled = Pref.enableVipTrial ||
+                      index >= totalQaSam - usefulQaSam;
                   return PopupMenuItem<int>(
                     enabled: enabled,
                     height: 35,

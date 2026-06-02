@@ -985,8 +985,9 @@ class HeaderControlState extends State<HeaderControl>
                           );
                         }
                       },
-                      // 可能包含会员解锁画质
-                      enabled: index >= totalQaSam - usefulQaSam,
+                      // 可能包含会员解锁画质，开启试用后可选择
+                      enabled: Pref.enableVipTrial ||
+                          index >= totalQaSam - usefulQaSam,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 20,
                       ),

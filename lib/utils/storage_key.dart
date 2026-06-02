@@ -187,6 +187,8 @@ abstract final class SettingBoxKey {
       blockServer = 'blockServer',
       blockTrack = 'blockTrack';
 
+  static const String enableVipTrial = 'enableVipTrial';
+
   static const String enableShowDanmaku = 'enableShowDanmaku',
       enableShowLiveDanmaku = 'enableShowLiveDanmaku',
       pipNoDanmaku = 'pipNoDanmaku',
