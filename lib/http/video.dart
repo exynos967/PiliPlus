@@ -314,9 +314,14 @@ abstract final class VideoHttp {
       if (Pref.enableVipTrial) 'try_look': 1,
     };
     AppSign.appSign(params);
+    final api = switch (videoType) {
+      VideoType.ugc => Api.ugcAppUrl,
+      VideoType.pgc => Api.pgcAppUrl,
+      VideoType.pugv => Api.pugvAppUrl,
+    };
     try {
       final res = await Request().get(
-        videoType.api,
+        api,
         queryParameters: params,
       );
       if (res.data['code'] == 0) {

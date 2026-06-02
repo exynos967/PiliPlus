@@ -18,12 +18,15 @@ abstract final class Api {
   // 视频流
   // https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/video/videostream_url.md
   static const String ugcUrl = '/x/player/wbi/playurl';
+  // APP 接口（AppSign 鉴权）
+  static const String ugcAppUrl = '/x/player/playurl';
 
   // 番剧视频流
-  // https://api.bilibili.com/pgc/player/web/v2/playurl?cid=104236640&bvid=BV13t411n7ex
   static const String pgcUrl = '/pgc/player/web/v2/playurl';
+  static const String pgcAppUrl = '/pgc/player/api/playurl';
 
   static const String pugvUrl = '/pugv/player/web/playurl';
+  static const String pugvAppUrl = '/pugv/player/api/playurl';
 
   static const String tvPlayUrl = '/x/tv/playurl';
 
