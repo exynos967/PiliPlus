@@ -8,6 +8,7 @@ import 'package:PiliPlus/common/widgets/pair.dart';
 import 'package:PiliPlus/common/widgets/progress_bar/segment_progress_bar.dart';
 import 'package:PiliPlus/grpc/bilibili/app/listener/v1.pbenum.dart'
     show PlaylistSource;
+import 'package:PiliPlus/grpc/video.dart';
 import 'package:PiliPlus/http/fav.dart';
 import 'package:PiliPlus/http/init.dart';
 import 'package:PiliPlus/http/loading_state.dart';
@@ -869,15 +870,11 @@ class VideoDetailController extends GetxController
 
     LoadingState<PlayUrlModel> result;
     if (useTrial) {
-      // APP 接口 + AppSign 鉴权尝试获取试用画质
-      result = await VideoHttp.appPlayUrl(
-        avid: aid,
-        bvid: bvid,
+      // gRPC playurl + makeVipFree（与 BiliRoamingX 相同逻辑）
+      result = await GrpcVideo.playUrl(
+        aid: aid,
         cid: cid.value,
-        qn: targetQn,
-        epid: epId,
-        seasonId: seasonId,
-        videoType: _actualVideoType ?? videoType,
+        qn: targetQn!,
       );
     } else {
       result = await VideoHttp.videoUrl(
