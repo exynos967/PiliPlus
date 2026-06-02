@@ -100,7 +100,7 @@ abstract final class GrpcVideo {
       dash: Dash()
         ..video = videoItems
         ..audio = audioItems.isEmpty ? null : audioItems,
-      acceptQuality: videoItems.map((v) => v.id).toSet().toList(),
+      acceptQuality: videoItems.map((v) => v.id).whereType<int>().toSet().toList(),
       acceptDesc: videoItems.map((v) => v.quality.desc).toList(),
       supportFormats: [
         for (final v in videoItems)
