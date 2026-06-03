@@ -866,15 +866,16 @@ class VideoDetailController extends GetxController
     }
 
     final targetQn = qn ?? plPlayerController.cacheVideoQa;
-    final useTrial = Pref.enableVipTrial && targetQn != null && targetQn >= 112;
+    // gRPC 试用仅在用户主动切换 VIP 画质时触发（qn 有值），
+    // 正常播放始终走 REST API 避免播放器兼容问题
+    final useTrial = Pref.enableVipTrial && qn != null && qn >= 112;
 
     LoadingState<PlayUrlModel> result;
     if (useTrial) {
-      // gRPC playurl + makeVipFree（与 BiliRoamingX 相同逻辑）
       result = await GrpcVideo.playUrl(
         aid: aid,
         cid: cid.value,
-        qn: targetQn!,
+        qn: qn!,
       );
     } else {
       result = await VideoHttp.videoUrl(
