@@ -964,7 +964,7 @@ class VideoDetailController extends GetxController
           VideoQuality.vipCodes.contains(cacheVideoQa) &&
           plPlayerController.tryLook) {
         final trialResult = await _getVideoUrl(cacheVideoQa);
-        if (trialResult case Success(:final trialResponse)) {
+        if (trialResult case Success(response: final trialResponse)) {
           if (trialResponse.dash?.video?.isNotEmpty == true) {
             data.dash!.video!.merge(trialResponse.dash!.video);
             targetVideoQa = cacheVideoQa;
