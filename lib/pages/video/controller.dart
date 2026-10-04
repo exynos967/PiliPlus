@@ -331,26 +331,37 @@ class VideoDetailController extends GetxController
     return vip != null && (vip.vipStatus ?? 0) > 0;
   }
 
-  /// 无限试用会员画质：已登录非会员且开启设置，仅支持UGC（App端PlayView接口）
+  /// 无限试用会员画质：开启设置、非会员、UGC视频（App端PlayView接口，同哔哩漫游X）
   bool get enableTrialVipQuality =>
       Pref.trialVipQuality &&
-      isLoginVideo &&
       !isEffectiveVip &&
       (_actualVideoType ?? videoType) == VideoType.ugc;
 
-  /// 通过App端接口获取会员画质试用流，确实包含目标画质时合并并返回true
-  Future<bool> _fetchTrialVipQuality(int quality) async {
+  /// 请求App端会员画质试用流并合并进 [target]，返回实际获取到的画质
+  Future<LoadingState<Set<int>>> _fetchTrialVipStreams(
+    PlayUrlModel target,
+    int qn,
+  ) async {
+    final account = Accounts.get(AccountType.video);
+    if (!account.isLogin) {
+      return const Error('视频取流账号未登录，无法获取试用画质');
+    }
+    if (account.accessKey?.isNotEmpty != true) {
+      return const Error('视频取流账号缺少access_key（Cookie登录），请改用扫码或密码登录');
+    }
     final res = await PlayUrlGrpc.vipTrialVideos(
       aid: aid,
       cid: cid.value,
-      qn: quality,
+      qn: qn,
     );
-    if (res case Success(:final response)
-        when response.any((e) => e.id == quality)) {
-      data.dash!.video!.merge(response);
-      return true;
+    if (res case Success(:final response)) {
+      if (response.isEmpty) {
+        return const Error('服务器未下发会员画质试用流');
+      }
+      target.dash!.video!.merge(response);
+      return Success(response.availableVideoQualities);
     }
-    return false;
+    return res as Error;
   }
 
   /// 画质面板点选会员画质时调用，成功返回true
@@ -362,11 +373,51 @@ class VideoDetailController extends GetxController
     if (data.dash!.video!.any((e) => e.id == quality)) {
       return true; // 已有该画质流，无需额外请求
     }
-    if (await _fetchTrialVipQuality(quality)) {
+    final res = await _fetchTrialVipStreams(data, quality);
+    if (res case Success(:final response) when response.contains(quality)) {
       return true;
     }
-    SmartDialog.showToast('该画质暂无可试用的视频流');
+    SmartDialog.showToast(
+      res is Error ? res.toString() : '服务器未下发该画质的试用流',
+    );
     return false;
+  }
+
+  /// 开播后在后台获取试用流，成功则自动切换到不超过偏好画质的最高试用画质
+  Future<void> _autoTrialVipQuality() async {
+    final currentData = data;
+    final preferred = plPlayerController.cacheVideoQa!;
+    final current = currentVideoQa.value?.code;
+    if (current == null ||
+        currentData.findTrialVipQuality(preferred, current) == null) {
+      return;
+    }
+    final res = await _fetchTrialVipStreams(currentData, preferred);
+    // 等待期间可能已切换分P/画质或页面已关闭
+    if (isClosed ||
+        !identical(data, currentData) ||
+        currentVideoQa.value?.code != current) {
+      return;
+    }
+    if (res case Success(:final response)) {
+      int? best;
+      for (final q in response) {
+        if (q > current && q <= preferred && (best == null || q > best)) {
+          best = q;
+        }
+      }
+      if (best == null) return;
+      final newQa = VideoQuality.fromCode(best);
+      currentVideoQa.value = newQa;
+      if (_autoPlay.value) {
+        updatePlayer();
+      } else {
+        // 尚未开播：仅更新待播放地址，避免自动开始播放
+        firstVideo = findVideoByQa(best, setCodecs: true);
+        videoUrl = VideoUtils.getCdnUrl(firstVideo.playUrls);
+      }
+      SmartDialog.showToast('已切换至试用画质：${newQa.desc}');
+    }
   }
 
   late final watchProgress = GStorage.watchProgress;
@@ -972,16 +1023,7 @@ class VideoDetailController extends GetxController
 
       // if (kDebugMode) debugPrint("allVideosList:${allVideosList}");
       final cacheVideoQa = plPlayerController.cacheVideoQa!;
-      var targetVideoQa = data.findAvailableVideoQuality(cacheVideoQa);
-
-      // 无限试用：偏好画质高于当前可用画质时，尝试获取会员画质试用流
-      if (enableTrialVipQuality) {
-        final trialQa = data.findTrialVipQuality(cacheVideoQa, targetVideoQa);
-        if (trialQa != null && await _fetchTrialVipQuality(trialQa)) {
-          targetVideoQa = trialQa;
-        }
-      }
-
+      final targetVideoQa = data.findAvailableVideoQuality(cacheVideoQa);
       currentVideoQa.value = VideoQuality.fromCode(targetVideoQa);
 
       /// 优先顺序 设置中指定解码格式 -> 当前可选的首个解码格式
@@ -1035,6 +1077,8 @@ class VideoDetailController extends GetxController
         audioUrl = '';
       }
       await _initPlayerIfNeeded(autoFullScreenFlag);
+      // 无限试用：先以普通画质开播，后台获取试用流后自动切换（同原版体验）
+      if (enableTrialVipQuality) _autoTrialVipQuality();
     } else {
       _autoPlay.value = false;
       videoState.value = false;
