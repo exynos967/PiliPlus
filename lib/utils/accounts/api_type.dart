@@ -1,4 +1,6 @@
+import 'package:PiliPlus/grpc/url.dart';
 import 'package:PiliPlus/http/api.dart';
+import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/models/common/account_type.dart';
 
 abstract final class ApiType {
@@ -100,6 +102,7 @@ abstract final class ApiType {
       Api.pugvUrl,
       Api.tvPlayUrl,
       Api.videoshot,
+      '${HttpString.appBaseUrl}${GrpcUrl.playView}',
     },
   };
 
