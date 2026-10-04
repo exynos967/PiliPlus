@@ -68,6 +68,22 @@ class PlayUrlModel {
     }
   }
 
+  /// 在 (currentQuality, preferredQuality] 区间内取视频支持的最高会员画质，用于试用
+  int? findTrialVipQuality(int preferredQuality, int currentQuality) {
+    int? best;
+    for (final item in supportFormats ?? const <FormatItem>[]) {
+      final quality = item.quality;
+      if (quality != null &&
+          quality > currentQuality &&
+          quality <= preferredQuality &&
+          VideoQuality.vipCodes.contains(quality) &&
+          (best == null || quality > best)) {
+        best = quality;
+      }
+    }
+    return best;
+  }
+
   @pragma('vm:notify-debugger-on-exception')
   int get missingVideoQualityBelowHighest {
     int best = -1;

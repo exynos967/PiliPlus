@@ -916,9 +916,8 @@ class HeaderControlState extends State<HeaderControl>
 
     final List<FormatItem> videoFormat = videoInfo.supportFormats!;
     final availableQa = videoInfo.dash!.video!.availableVideoQualities;
-    // 无限试用会员画质：非会员且开启设置时，VIP画质可点选（以试看模式请求）
-    final trialVipQuality =
-        Pref.trialVipQuality && !videoDetailCtr.isEffectiveVip;
+    // 无限试用会员画质：非会员且开启设置时，VIP画质可点选（请求App端试用流）
+    final trialVipQuality = videoDetailCtr.enableTrialVipQuality;
 
     showBottomSheet(
       (context, setState) {
@@ -968,7 +967,7 @@ class HeaderControlState extends State<HeaderControl>
                         final int quality = item.quality!;
                         final newQa = VideoQuality.fromCode(quality);
 
-                        // 无限试用：目标画质无本地流时，先以试看模式请求
+                        // 无限试用：目标画质无本地流时，先请求试用流
                         if (!availableQa.contains(quality)) {
                           final ok = await videoDetailCtr
                               .queryTrialVipQuality(quality);

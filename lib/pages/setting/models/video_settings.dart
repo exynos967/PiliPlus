@@ -39,7 +39,7 @@ List<SettingsModel> get videoSettings => [
   ),
   const SwitchModel(
     title: '无限试用会员画质',
-    subtitle: '非会员以试看模式请求会员画质（4K/杜比/HDR/1080P高码率等），能否成功取决于B站接口是否返回试看流',
+    subtitle: '已登录非会员通过App端接口获取会员画质试用流（4K/杜比/HDR/1080P高码率等），仅支持普通视频，能否成功取决于B站是否下发试用流',
     leading: Icon(Icons.star_border_outlined),
     setKey: SettingBoxKey.trialVipQuality,
     defaultVal: false,

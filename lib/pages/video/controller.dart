@@ -9,6 +9,7 @@ import 'package:PiliPlus/common/widgets/scaffold/mini_scaffold.dart';
 import 'package:PiliPlus/grpc/bilibili/app/listener/v1.pbenum.dart'
     show PlaylistSource;
 import 'package:PiliPlus/grpc/dm.dart';
+import 'package:PiliPlus/grpc/play_url.dart';
 import 'package:PiliPlus/http/browser_ua.dart';
 import 'package:PiliPlus/http/fav.dart';
 import 'package:PiliPlus/http/init.dart';
@@ -330,12 +331,30 @@ class VideoDetailController extends GetxController
     return vip != null && (vip.vipStatus ?? 0) > 0;
   }
 
-  /// 以试看模式请求会员画质，成功则合并流并返回true
-  Future<bool> queryTrialVipQuality(int quality) async {
-    if (!plPlayerController.tryLook) {
-      SmartDialog.showToast('未开启试看设置');
-      return false;
+  /// 无限试用会员画质：已登录非会员且开启设置，仅支持UGC（App端PlayView接口）
+  bool get enableTrialVipQuality =>
+      Pref.trialVipQuality &&
+      isLoginVideo &&
+      !isEffectiveVip &&
+      (_actualVideoType ?? videoType) == VideoType.ugc;
+
+  /// 通过App端接口获取会员画质试用流，确实包含目标画质时合并并返回true
+  Future<bool> _fetchTrialVipQuality(int quality) async {
+    final res = await PlayUrlGrpc.vipTrialVideos(
+      aid: aid,
+      cid: cid.value,
+      qn: quality,
+    );
+    if (res case Success(:final response)
+        when response.any((e) => e.id == quality)) {
+      data.dash!.video!.merge(response);
+      return true;
     }
+    return false;
+  }
+
+  /// 画质面板点选会员画质时调用，成功返回true
+  Future<bool> queryTrialVipQuality(int quality) async {
     if (data.dash?.video == null) {
       SmartDialog.showToast('当前视频不支持选择画质');
       return false;
@@ -343,14 +362,10 @@ class VideoDetailController extends GetxController
     if (data.dash!.video!.any((e) => e.id == quality)) {
       return true; // 已有该画质流，无需额外请求
     }
-    final result = await _getVideoUrl(quality);
-    if (result case Success(:final response)) {
-      if (response.dash?.video?.isNotEmpty == true) {
-        data.dash!.video!.merge(response.dash!.video);
-        return true;
-      }
+    if (await _fetchTrialVipQuality(quality)) {
+      return true;
     }
-    SmartDialog.showToast('该画质暂不支持试看，可能为大会员专属');
+    SmartDialog.showToast('该画质暂无可试用的视频流');
     return false;
   }
 
@@ -959,16 +974,11 @@ class VideoDetailController extends GetxController
       final cacheVideoQa = plPlayerController.cacheVideoQa!;
       var targetVideoQa = data.findAvailableVideoQuality(cacheVideoQa);
 
-      // 无限试用：目标画质低于缓存画质且缓存画质为VIP画质时，以试看模式请求
-      if (targetVideoQa < cacheVideoQa &&
-          VideoQuality.vipCodes.contains(cacheVideoQa) &&
-          plPlayerController.tryLook) {
-        final trialResult = await _getVideoUrl(cacheVideoQa);
-        if (trialResult case Success(response: final trialResponse)) {
-          if (trialResponse.dash?.video?.isNotEmpty == true) {
-            data.dash!.video!.merge(trialResponse.dash!.video);
-            targetVideoQa = cacheVideoQa;
-          }
+      // 无限试用：偏好画质高于当前可用画质时，尝试获取会员画质试用流
+      if (enableTrialVipQuality) {
+        final trialQa = data.findTrialVipQuality(cacheVideoQa, targetVideoQa);
+        if (trialQa != null && await _fetchTrialVipQuality(trialQa)) {
+          targetVideoQa = trialQa;
         }
       }
 
