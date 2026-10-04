@@ -3,16 +3,20 @@ import 'package:PiliPlus/grpc/bilibili/playershared.pb.dart' show VideoVod;
 import 'package:PiliPlus/grpc/grpc_req.dart';
 import 'package:PiliPlus/grpc/url.dart';
 import 'package:PiliPlus/http/loading_state.dart';
+import 'package:PiliPlus/models/common/video/audio_quality.dart';
 import 'package:PiliPlus/models/common/video/video_quality.dart';
 import 'package:PiliPlus/models/video/play/url.dart';
 import 'package:PiliPlus/utils/accounts/grpc_headers.dart';
 import 'package:fixnum/fixnum.dart';
 
+/// 会员画质试用流及同来源（App端）音频
+typedef TrialStreams = ({List<VideoItem> videos, List<AudioItem> audios});
+
 abstract final class PlayUrlGrpc {
   /// App端 PlayViewUnite 以试用模式（is_need_trial）请求，非会员也会下发
   /// 可试用的会员画质流（need_vip=true），客户端忽略 need_vip 即可直接播放
   /// （同哔哩漫游X「无限试用会员画质」）
-  static Future<LoadingState<List<VideoItem>>> vipTrialVideos({
+  static Future<LoadingState<TrialStreams>> vipTrialStreams({
     required int aid,
     required int cid,
     required String bvid,
@@ -38,8 +42,8 @@ abstract final class PlayUrlGrpc {
       client: GrpcClient.play,
     );
     if (res case Success(:final response)) {
-      final list = _toVideoItems(response);
-      if (list.isEmpty) {
+      final videos = _toVideoItems(response);
+      if (videos.isEmpty) {
         // 附带试用资格信息，便于判断是账号无试用资格还是请求方式问题
         final trial = response.qnTrialInfo;
         return Error(
@@ -47,9 +51,30 @@ abstract final class PlayUrlGrpc {
           '${response.hasQnTrialInfo() ? '（可试用:${trial.trialAble} 剩余次数:${trial.remainingTimes}）' : '（无试用信息）'}',
         );
       }
-      return Success(list);
+      return Success((videos: videos, audios: _toAudioItems(response)));
     }
     return res as Error;
+  }
+
+  static final _audioCodes = {for (final i in AudioQuality.values) i.code};
+
+  static List<AudioItem> _toAudioItems(PlayViewUniteReply reply) {
+    final list = <AudioItem>[];
+    for (final dash in reply.vodInfo.dashAudio) {
+      if (dash.baseUrl.isEmpty || !_audioCodes.contains(dash.id)) continue;
+      list.add(
+        AudioItem(
+            id: dash.id,
+            baseUrl: dash.baseUrl,
+            backupUrl: dash.backupUrl.toList(),
+            bandWidth: dash.bandwidth,
+            codecs: 'mp4a.40.2',
+            codecid: dash.codecid,
+          )
+          ..fromApp = true,
+      );
+    }
+    return list;
   }
 
   static List<VideoItem> _toVideoItems(PlayViewUniteReply reply) {
@@ -79,7 +104,7 @@ abstract final class PlayUrlGrpc {
           frameRate: dash.frameRate,
           codecid: dash.codecid,
           quality: VideoQuality.fromCode(quality),
-        ),
+        )..fromApp = true,
       );
     }
     return list;

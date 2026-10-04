@@ -43,6 +43,9 @@ class PlayUrlModel {
   List<FormatItem>? supportFormats;
   Volume? volume;
 
+  /// 会员画质试用流同来源（App端）的音频，播放试用流时须搭配使用
+  List<AudioItem>? appAudio;
+
   late int _lastPlayTime;
   int get lastPlayTime => _lastPlayTime;
   set lastPlayTime(int? value) {
@@ -284,6 +287,9 @@ abstract class BaseItem {
   Map? segmentBase;
   int? codecid;
 
+  /// 来自App端接口（需App UA且不带Referer才能播放）
+  bool fromApp = false;
+
   BaseItem({
     required this.id,
     this.baseUrl,
@@ -350,6 +356,17 @@ class VideoItem extends BaseItem {
 
 class AudioItem extends BaseItem {
   late String quality;
+
+  AudioItem({
+    required super.id,
+    super.baseUrl,
+    super.backupUrl,
+    super.bandWidth,
+    super.codecs,
+    super.codecid,
+  }) {
+    quality = AudioQuality.fromCode(id).desc;
+  }
 
   AudioItem.fromJson(Map<String, dynamic> json) : super.fromJson(json) {
     quality = AudioQuality.fromCode(json['id']).desc;

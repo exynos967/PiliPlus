@@ -12,9 +12,13 @@ sealed class DataSource {
 }
 
 class NetworkSource extends DataSource {
+  /// 来自App端接口的地址，须使用App UA且不带Referer
+  final bool isApp;
+
   NetworkSource({
     required super.videoSource,
     required super.audioSource,
+    this.isApp = false,
   });
 }
 

@@ -350,17 +350,33 @@ class VideoDetailController extends GetxController
     if (account.accessKey?.isNotEmpty != true) {
       return const Error('视频取流账号缺少access_key（Cookie登录），请改用扫码或密码登录');
     }
-    final res = await PlayUrlGrpc.vipTrialVideos(
+    final res = await PlayUrlGrpc.vipTrialStreams(
       aid: aid,
       cid: cid.value,
       bvid: bvid,
       qn: qn,
     );
     if (res case Success(:final response)) {
-      target.dash!.video!.merge(response);
-      return Success(response.availableVideoQualities);
+      target.dash!.video!.merge(response.videos);
+      if (response.audios.isNotEmpty) target.appAudio = response.audios;
+      return Success(response.videos.availableVideoQualities);
     }
     return res as Error;
+  }
+
+  /// 按当前视频来源选取音频：试用流来自App端，须搭配同来源音频（请求头不同）
+  void _updateAudioUrl() {
+    final audioQa = currentAudioQa;
+    if (audioQa == null) return;
+    final appAudio = data.appAudio;
+    final audios = firstVideo.fromApp && appAudio != null
+        ? appAudio
+        : data.dash!.audio!;
+    final audio = audios.firstWhere(
+      (i) => i.id == audioQa.code,
+      orElse: () => audios.first,
+    );
+    audioUrl = VideoUtils.getCdnUrl(audio.playUrls, isAudio: true);
   }
 
   /// 该画质当前无流，但可尝试获取会员画质试用流
@@ -440,6 +456,7 @@ class VideoDetailController extends GetxController
         // 尚未开播：仅更新待播放地址，避免自动开始播放
         firstVideo = findVideoByQa(best, setCodecs: true);
         videoUrl = VideoUtils.getCdnUrl(firstVideo.playUrls);
+        _updateAudioUrl();
       }
       SmartDialog.showToast('已切换至试用画质：${newQa.desc}');
     }
@@ -811,13 +828,7 @@ class VideoDetailController extends GetxController
     videoUrl = VideoUtils.getCdnUrl(firstVideo.playUrls);
 
     /// 根据currentAudioQa 重新设置audioUrl
-    if (currentAudioQa != null) {
-      final firstAudio = data.dash!.audio!.firstWhere(
-        (i) => i.id == currentAudioQa!.code,
-        orElse: () => data.dash!.audio!.first,
-      );
-      audioUrl = VideoUtils.getCdnUrl(firstAudio.playUrls, isAudio: true);
-    }
+    _updateAudioUrl();
 
     playerInit();
   }
@@ -853,6 +864,7 @@ class VideoDetailController extends GetxController
           : NetworkSource(
               videoSource: videoUrl!,
               audioSource: audioUrl,
+              isApp: firstVideo.fromApp,
             ),
       seekTo: seek,
       duration: data.timeLength == null

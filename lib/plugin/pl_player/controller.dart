@@ -5,6 +5,7 @@ import 'dart:math' show max, min;
 import 'dart:ui' as ui;
 
 import 'package:PiliPlus/common/assets.dart';
+import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/http/browser_ua.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/http/loading_state.dart';
@@ -855,8 +856,6 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       ),
     );
 
-    player.setMediaHeader(userAgent: BrowserUa.pc, referer: HttpString.baseUrl);
-
     _startListeners(player);
 
     return player;
@@ -917,6 +916,15 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
             '%${isFileSource ? utf8.encode(audio).length : audio.length}%$audio');
       }
       audioFilterExtras(volume, map: extras);
+    }
+
+    // 网页端地址需Referer；App端地址需App UA且不能带Referer。
+    // mpv 的 referrer 属性设置后无法清除，故 Referer 统一通过 header 字段设置
+    if (dataSource case NetworkSource(:final isApp)) {
+      player.setMediaHeader(
+        userAgent: isApp ? Constants.userAgentApp : BrowserUa.pc,
+        headers: isApp ? const {} : const {'Referer': HttpString.baseUrl},
+      );
     }
 
     assert(!isLive || seekTo == null);
