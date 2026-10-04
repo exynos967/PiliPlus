@@ -323,6 +323,37 @@ class VideoDetailController extends GetxController
 
   final isLoginVideo = Accounts.get(AccountType.video).isLogin;
 
+  /// 是否为有效大会员（用于无限试用画质判断）
+  bool get isEffectiveVip {
+    if (!isLoginVideo) return false;
+    final vip = Pref.userInfoCache;
+    return vip != null && (vip.vipStatus ?? 0) > 0;
+  }
+
+  /// 以试看模式请求会员画质，成功则合并流并返回true
+  Future<bool> queryTrialVipQuality(int quality) async {
+    if (!plPlayerController.tryLook) {
+      SmartDialog.showToast('未开启试看设置');
+      return false;
+    }
+    if (data.dash?.video == null) {
+      SmartDialog.showToast('当前视频不支持选择画质');
+      return false;
+    }
+    if (data.dash!.video!.any((e) => e.id == quality)) {
+      return true; // 已有该画质流，无需额外请求
+    }
+    final result = await _getVideoUrl(quality);
+    if (result case Success(:final response)) {
+      if (response.dash?.video?.isNotEmpty == true) {
+        data.dash!.video!.merge(response.dash!.video);
+        return true;
+      }
+    }
+    SmartDialog.showToast('该画质暂不支持试看，可能为大会员专属');
+    return false;
+  }
+
   late final watchProgress = GStorage.watchProgress;
   void cacheLocalProgress() {
     if (plPlayerController.playerStatus.isCompleted) {
@@ -926,7 +957,21 @@ class VideoDetailController extends GetxController
 
       // if (kDebugMode) debugPrint("allVideosList:${allVideosList}");
       final cacheVideoQa = plPlayerController.cacheVideoQa!;
-      final targetVideoQa = data.findAvailableVideoQuality(cacheVideoQa);
+      var targetVideoQa = data.findAvailableVideoQuality(cacheVideoQa);
+
+      // 无限试用：目标画质低于缓存画质且缓存画质为VIP画质时，以试看模式请求
+      if (targetVideoQa < cacheVideoQa &&
+          VideoQuality.vipCodes.contains(cacheVideoQa) &&
+          plPlayerController.tryLook) {
+        final trialResult = await _getVideoUrl(cacheVideoQa);
+        if (trialResult case Success(:final trialResponse)) {
+          if (trialResponse.dash?.video?.isNotEmpty == true) {
+            data.dash!.video!.merge(trialResponse.dash!.video);
+            targetVideoQa = cacheVideoQa;
+          }
+        }
+      }
+
       currentVideoQa.value = VideoQuality.fromCode(targetVideoQa);
 
       /// 优先顺序 设置中指定解码格式 -> 当前可选的首个解码格式

@@ -916,6 +916,9 @@ class HeaderControlState extends State<HeaderControl>
 
     final List<FormatItem> videoFormat = videoInfo.supportFormats!;
     final availableQa = videoInfo.dash!.video!.availableVideoQualities;
+    // 无限试用会员画质：非会员且开启设置时，VIP画质可点选（以试看模式请求）
+    final trialVipQuality =
+        Pref.trialVipQuality && !videoDetailCtr.isEffectiveVip;
 
     showBottomSheet(
       (context, setState) {
@@ -964,6 +967,14 @@ class HeaderControlState extends State<HeaderControl>
                         Get.back();
                         final int quality = item.quality!;
                         final newQa = VideoQuality.fromCode(quality);
+
+                        // 无限试用：目标画质无本地流时，先以试看模式请求
+                        if (!availableQa.contains(quality)) {
+                          final ok = await videoDetailCtr
+                              .queryTrialVipQuality(quality);
+                          if (!ok) return;
+                        }
+
                         videoDetailCtr
                           ..plPlayerController.cacheVideoQa = newQa.code
                           ..currentVideoQa.value = newQa
@@ -982,7 +993,9 @@ class HeaderControlState extends State<HeaderControl>
                         }
                       },
                       // 可能包含会员解锁画质
-                      enabled: availableQa.contains(item.quality),
+                      enabled: availableQa.contains(item.quality) ||
+                          (trialVipQuality &&
+                              VideoQuality.vipCodes.contains(item.quality)),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 20,
                       ),
@@ -992,10 +1005,19 @@ class HeaderControlState extends State<HeaderControl>
                               Icons.done,
                               color: theme.colorScheme.primary,
                             )
-                          : Text(
-                              item.format!,
-                              style: subTitleStyle,
-                            ),
+                          : !availableQa.contains(item.quality) &&
+                                  trialVipQuality &&
+                                  VideoQuality.vipCodes.contains(item.quality)
+                              ? Text(
+                                  '试看',
+                                  style: subTitleStyle.copyWith(
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                )
+                              : Text(
+                                  item.format!,
+                                  style: subTitleStyle,
+                                ),
                     );
                   },
                 ),
