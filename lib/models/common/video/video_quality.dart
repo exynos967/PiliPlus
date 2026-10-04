@@ -23,4 +23,9 @@ enum VideoQuality {
   static final _codeMap = {for (final i in values) i.code: i};
 
   static VideoQuality fromCode(int code) => _codeMap[code]!;
+
+  /// 会员专属画质（需VIP或试看）
+  static const vipCodes = {129, 127, 126, 125, 120, 116, 112};
+
+  bool get isVipOnly => vipCodes.contains(code);
 }
