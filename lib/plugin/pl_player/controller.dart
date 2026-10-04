@@ -148,7 +148,15 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   int? width;
   int? height;
 
-  late final tryLook = !Accounts.get(AccountType.video).isLogin && Pref.p1080;
+  late final tryLook = _computeTryLook();
+
+  static bool _computeTryLook() {
+    final account = Accounts.get(AccountType.video);
+    if (!account.isLogin) return Pref.p1080;
+    if (!Pref.trialVipQuality) return false;
+    final vip = Pref.userInfoCache;
+    return vip == null || (vip.vipStatus ?? 0) <= 0;
+  }
 
   late DataSource dataSource;
 
