@@ -916,8 +916,6 @@ class HeaderControlState extends State<HeaderControl>
 
     final List<FormatItem> videoFormat = videoInfo.supportFormats!;
     final availableQa = videoInfo.dash!.video!.availableVideoQualities;
-    // 无限试用会员画质：非会员且开启设置时，VIP画质可点选（请求App端试用流）
-    final trialVipQuality = videoDetailCtr.enableTrialVipQuality;
 
     showBottomSheet(
       (context, setState) {
@@ -957,44 +955,22 @@ class HeaderControlState extends State<HeaderControl>
                   itemBuilder: (context, index) {
                     final item = videoFormat[index];
                     final isCurr = currentVideoQa.code == item.quality;
+                    // 无限试用：无本地流的会员画质也可点选
+                    final isTrial = videoDetailCtr.isTrialVipQuality(
+                      item.quality,
+                      availableQa,
+                    );
                     return ListTile(
                       dense: true,
-                      onTap: () async {
+                      onTap: () {
                         if (isCurr) {
                           return;
                         }
                         Get.back();
-                        final int quality = item.quality!;
-                        final newQa = VideoQuality.fromCode(quality);
-
-                        // 无限试用：目标画质无本地流时，先请求试用流
-                        if (!availableQa.contains(quality)) {
-                          final ok = await videoDetailCtr
-                              .queryTrialVipQuality(quality);
-                          if (!ok) return;
-                        }
-
-                        videoDetailCtr
-                          ..plPlayerController.cacheVideoQa = newQa.code
-                          ..currentVideoQa.value = newQa
-                          ..updatePlayer();
-
-                        SmartDialog.showToast("画质已变为：${newQa.desc}");
-
-                        // update
-                        if (!plPlayerController.tempPlayerConf) {
-                          setting.put(
-                            await ConnectivityUtils.isWiFi
-                                ? SettingBoxKey.defaultVideoQa
-                                : SettingBoxKey.defaultVideoQaCellular,
-                            quality,
-                          );
-                        }
+                        videoDetailCtr.changeVideoQa(item.quality!);
                       },
                       // 可能包含会员解锁画质
-                      enabled: availableQa.contains(item.quality) ||
-                          (trialVipQuality &&
-                              VideoQuality.vipCodes.contains(item.quality)),
+                      enabled: availableQa.contains(item.quality) || isTrial,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 20,
                       ),
@@ -1004,9 +980,7 @@ class HeaderControlState extends State<HeaderControl>
                               Icons.done,
                               color: theme.colorScheme.primary,
                             )
-                          : !availableQa.contains(item.quality) &&
-                                  trialVipQuality &&
-                                  VideoQuality.vipCodes.contains(item.quality)
+                          : isTrial
                               ? Text(
                                   '试看',
                                   style: subTitleStyle.copyWith(

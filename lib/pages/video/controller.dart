@@ -62,6 +62,7 @@ import 'package:PiliPlus/utils/extension/size_ext.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
+import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/theme_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
@@ -364,8 +365,34 @@ class VideoDetailController extends GetxController
     return res as Error;
   }
 
-  /// 画质面板点选会员画质时调用，成功返回true
-  Future<bool> queryTrialVipQuality(int quality) async {
+  /// 该画质当前无流，但可尝试获取会员画质试用流
+  bool isTrialVipQuality(int? quality, Set<int> availableQa) =>
+      enableTrialVipQuality &&
+      !availableQa.contains(quality) &&
+      VideoQuality.vipCodes.contains(quality);
+
+  /// 用户手动切换画质：必要时先获取试用流，切换后记住偏好
+  Future<void> changeVideoQa(int quality) async {
+    if (!await _ensureVideoQaStream(quality)) return;
+    final newQa = VideoQuality.fromCode(quality);
+    plPlayerController.cacheVideoQa = newQa.code;
+    currentVideoQa.value = newQa;
+    updatePlayer();
+
+    SmartDialog.showToast("画质已变为：${newQa.desc}");
+
+    if (!plPlayerController.tempPlayerConf) {
+      GStorage.setting.put(
+        await ConnectivityUtils.isWiFi
+            ? SettingBoxKey.defaultVideoQa
+            : SettingBoxKey.defaultVideoQaCellular,
+        quality,
+      );
+    }
+  }
+
+  /// 确保存在目标画质的流，缺失时尝试获取试用流，成功返回true
+  Future<bool> _ensureVideoQaStream(int quality) async {
     if (data.dash?.video == null) {
       SmartDialog.showToast('当前视频不支持选择画质');
       return false;

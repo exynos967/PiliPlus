@@ -51,7 +51,6 @@ import 'package:PiliPlus/plugin/pl_player/widgets/mpv_convert_webp.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/play_pause_btn.dart';
 import 'package:PiliPlus/utils/android/bindings.g.dart';
 import 'package:PiliPlus/utils/cache_manager.dart';
-import 'package:PiliPlus/utils/connectivity_utils.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
@@ -62,8 +61,6 @@ import 'package:PiliPlus/utils/ios/pip_helper.dart';
 import 'package:PiliPlus/utils/mobile_observer.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
-import 'package:PiliPlus/utils/storage.dart';
-import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:collection/collection.dart';
@@ -812,34 +809,23 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                 videoFormat.length,
                 (index) {
                   final item = videoFormat[index];
-                  final enabled = availableQa.contains(item.quality);
+                  // 无限试用：无本地流的会员画质也可点选
+                  final enabled =
+                      availableQa.contains(item.quality) ||
+                      videoDetailController.isTrialVipQuality(
+                        item.quality,
+                        availableQa,
+                      );
                   return PopupMenuItem<int>(
                     enabled: enabled,
                     height: 35,
                     padding: const EdgeInsets.only(left: 15, right: 10),
                     value: item.quality,
-                    onTap: () async {
+                    onTap: () {
                       if (currentVideoQa.code == item.quality) {
                         return;
                       }
-                      final int quality = item.quality!;
-                      final newQa = VideoQuality.fromCode(quality);
-                      videoDetailController
-                        ..plPlayerController.cacheVideoQa = newQa.code
-                        ..currentVideoQa.value = newQa
-                        ..updatePlayer();
-
-                      SmartDialog.showToast("画质已变为：${newQa.desc}");
-
-                      // update
-                      if (!plPlayerController.tempPlayerConf) {
-                        GStorage.setting.put(
-                          await ConnectivityUtils.isWiFi
-                              ? SettingBoxKey.defaultVideoQa
-                              : SettingBoxKey.defaultVideoQaCellular,
-                          quality,
-                        );
-                      }
+                      videoDetailController.changeVideoQa(item.quality!);
                     },
                     child: Text(
                       item.newDesc ?? '',
