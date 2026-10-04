@@ -353,12 +353,10 @@ class VideoDetailController extends GetxController
     final res = await PlayUrlGrpc.vipTrialVideos(
       aid: aid,
       cid: cid.value,
+      bvid: bvid,
       qn: qn,
     );
     if (res case Success(:final response)) {
-      if (response.isEmpty) {
-        return const Error('服务器未下发会员画质试用流');
-      }
       target.dash!.video!.merge(response);
       return Success(response.availableVideoQualities);
     }

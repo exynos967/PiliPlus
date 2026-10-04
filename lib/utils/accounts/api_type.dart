@@ -102,7 +102,7 @@ abstract final class ApiType {
       Api.pugvUrl,
       Api.tvPlayUrl,
       Api.videoshot,
-      '${HttpString.appBaseUrl}${GrpcUrl.playView}',
+      '${HttpString.appBaseUrl}${GrpcUrl.playViewUnite}',
     },
   };
 

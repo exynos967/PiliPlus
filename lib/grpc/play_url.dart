@@ -1,4 +1,5 @@
-import 'package:PiliPlus/grpc/bilibili/app/playurl/v1.pb.dart' as playurl;
+import 'package:PiliPlus/grpc/bilibili/app/playerunite/v1.pb.dart';
+import 'package:PiliPlus/grpc/bilibili/playershared.pb.dart' show VideoVod;
 import 'package:PiliPlus/grpc/grpc_req.dart';
 import 'package:PiliPlus/grpc/url.dart';
 import 'package:PiliPlus/http/loading_state.dart';
@@ -7,35 +8,50 @@ import 'package:PiliPlus/models/video/play/url.dart';
 import 'package:fixnum/fixnum.dart';
 
 abstract final class PlayUrlGrpc {
-  /// App端播放地址：非会员也会下发可试用的会员画质流（need_vip=true），
-  /// 客户端忽略 need_vip 即可直接播放（同哔哩漫游X「无限试用会员画质」）
+  /// App端 PlayViewUnite 以试用模式（is_need_trial）请求，非会员也会下发
+  /// 可试用的会员画质流（need_vip=true），客户端忽略 need_vip 即可直接播放
+  /// （同哔哩漫游X「无限试用会员画质」）
   static Future<LoadingState<List<VideoItem>>> vipTrialVideos({
     required int aid,
     required int cid,
+    required String bvid,
     required int qn,
   }) async {
     final res = await GrpcReq.request(
-      GrpcUrl.playView,
-      playurl.PlayViewReq(
-        aid: Int64(aid),
-        cid: Int64(cid),
-        qn: Int64(qn),
-        fnver: 0,
-        fnval: 4048,
-        fourk: true,
-        forceHost: 2,
+      GrpcUrl.playViewUnite,
+      PlayViewUniteReq(
+        vod: VideoVod(
+          aid: Int64(aid),
+          cid: Int64(cid),
+          qn: Int64(qn),
+          fnver: 0,
+          fnval: 4048,
+          fourk: true,
+          forceHost: 2,
+          isNeedTrial: true,
+        ),
+        bvid: bvid,
       ),
-      playurl.PlayViewReply.fromBuffer,
+      PlayViewUniteReply.fromBuffer,
     );
     if (res case Success(:final response)) {
-      return Success(_toVideoItems(response));
+      final list = _toVideoItems(response);
+      if (list.isEmpty) {
+        // 附带试用资格信息，便于判断是账号无试用资格还是请求方式问题
+        final trial = response.qnTrialInfo;
+        return Error(
+          '服务器未下发会员画质试用流'
+          '${response.hasQnTrialInfo() ? '（可试用:${trial.trialAble} 剩余次数:${trial.remainingTimes}）' : '（无试用信息）'}',
+        );
+      }
+      return Success(list);
     }
     return res as Error;
   }
 
-  static List<VideoItem> _toVideoItems(playurl.PlayViewReply reply) {
+  static List<VideoItem> _toVideoItems(PlayViewUniteReply reply) {
     final list = <VideoItem>[];
-    for (final stream in reply.videoInfo.streamList) {
+    for (final stream in reply.vodInfo.streamList) {
       final quality = stream.streamInfo.quality;
       // 仅取会员画质，且必须真正下发了dash地址
       if (!VideoQuality.vipCodes.contains(quality) || !stream.hasDashVideo()) {
