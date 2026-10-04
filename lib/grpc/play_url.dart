@@ -5,6 +5,7 @@ import 'package:PiliPlus/grpc/url.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/common/video/video_quality.dart';
 import 'package:PiliPlus/models/video/play/url.dart';
+import 'package:PiliPlus/utils/accounts/grpc_headers.dart';
 import 'package:fixnum/fixnum.dart';
 
 abstract final class PlayUrlGrpc {
@@ -33,6 +34,8 @@ abstract final class PlayUrlGrpc {
         bvid: bvid,
       ),
       PlayViewUniteReply.fromBuffer,
+      // 试用画质仅对官方新版客户端下发，伪装为哔哩漫游X所在的谷歌Play版
+      client: GrpcClient.play,
     );
     if (res case Success(:final response)) {
       final list = _toVideoItems(response);

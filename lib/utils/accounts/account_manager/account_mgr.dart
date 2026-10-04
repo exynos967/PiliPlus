@@ -7,6 +7,7 @@ import 'package:PiliPlus/models/common/account_type.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
 import 'package:PiliPlus/utils/accounts/api_type.dart';
+import 'package:PiliPlus/utils/accounts/grpc_headers.dart';
 import 'package:PiliPlus/utils/app_sign.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
@@ -58,7 +59,13 @@ class AccountManager extends Interceptor {
     final isApp = path.startsWith(HttpString.appBaseUrl);
 
     if (isApp && options.responseType == ResponseType.bytes) {
-      options.headers.addAll(account.grpcHeaders);
+      // 指定了客户端身份时按该身份生成请求头，否则使用账号默认请求头
+      final client = options.extra[GrpcHeaders.clientKey] as GrpcClient?;
+      options.headers.addAll(
+        client == null
+            ? account.grpcHeaders
+            : GrpcHeaders.newHeaders(account.accessKey, client),
+      );
       return handler.next(options);
     }
 
